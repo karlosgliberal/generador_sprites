@@ -134,7 +134,10 @@ class ResearchLine(ABC):
             description=description,
             frames=frames,
             errors=errors,
-            metadata={"elapsed_seconds": round(elapsed, 2), **kwargs},
+            metadata={
+                "elapsed_seconds": round(elapsed, 2),
+                **{k: v for k, v in kwargs.items() if isinstance(v, (str, int, float, bool, type(None)))},
+            },
         )
 
         if output_dir:
