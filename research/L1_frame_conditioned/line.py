@@ -19,6 +19,7 @@ class FrameConditionedLine(ResearchLine):
             "L1.2b": self._subfase_2b_swapped_order,
             "L1.2c": self._subfase_2c_text_only_pose,
             "L1.3": self._subfase_3_temporal_consistency,
+            "L1.3b": self._subfase_3b_anchor_plus_prev,
         }
 
     @property
@@ -225,6 +226,57 @@ class FrameConditionedLine(ResearchLine):
             print(f"  Frame {i+1}/{target_frames}: [L1.3] refs={len(ref_images)} prev frames...")
             frame = provider.generate(
                 prompt, avatar, reference_images=ref_images if ref_images else None,
+            )
+            frames.append(frame.convert("RGBA"))
+
+        return frames
+
+    def _subfase_3b_anchor_plus_prev(
+        self,
+        description: str,
+        action: str,
+        num_frames: int | None = None,
+        **kwargs,
+    ) -> list[Image.Image]:
+        """L1.3b: Anchor frame + only last frame as reference.
+
+        Fix for L1.3's inertia problem: instead of a sliding window of 3
+        frames (which locks the model into repeating the same pose), use:
+        - Frame 0 as identity/style anchor (always present)
+        - Only the immediately previous frame for temporal continuity
+
+        This gives the model a stable identity reference while allowing
+        pose to evolve frame-to-frame without accumulating inertia.
+        """
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt_v3b
+
+        provider = create_provider("gemini")
+        templates = get_template_frames(action)
+        target_frames = num_frames or len(templates)
+
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
+
+        frames = []
+        for i in range(target_frames):
+            prompt = build_frame_prompt_v3b(
+                description, action, i, target_frames,
+                is_first=i == 0,
+            )
+
+            ref_images = None
+            if i == 0:
+                ref_label = "anchor"
+            elif i == 1:
+                ref_images = [frames[0]]
+                ref_label = "f0"
+            else:
+                ref_images = [frames[0], frames[i - 1]]
+                ref_label = f"f0+f{i-1}"
+
+            print(f"  Frame {i+1}/{target_frames}: [L1.3b] refs={ref_label}...")
+            frame = provider.generate(
+                prompt, avatar, reference_images=ref_images,
             )
             frames.append(frame.convert("RGBA"))
 

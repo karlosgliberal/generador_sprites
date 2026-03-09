@@ -273,3 +273,44 @@ def build_frame_prompt_v3(
         f"- PURE SOLID BLACK BACKGROUND #000000\n"
         f"- Side view facing right, centered in frame"
     )
+
+
+def build_frame_prompt_v3b(
+    description: str,
+    action: str,
+    frame_idx: int,
+    total_frames: int,
+    is_first: bool = False,
+) -> str:
+    """L1.3b: Anchor + previous frame only.
+
+    Uses frame 0 as style/identity anchor and only the previous frame
+    for temporal continuity. Avoids inertia from sliding window.
+    Explicitly tells the model which frame shows what.
+    """
+    action_desc = ACTION_DESCRIPTIONS.get(action, action)
+    pose_desc = get_pose_description(action, frame_idx, total_frames)
+
+    if is_first:
+        ref_instructions = (
+            "The reference image shows the character's base design.\n"
+            "Generate the FIRST frame of the animation.\n\n"
+        )
+    else:
+        ref_instructions = (
+            "I'm showing you reference images:\n"
+            "- FIRST image: frame 1 of this animation (style/size anchor)\n"
+            "- SECOND image: the previous frame in the sequence\n\n"
+            "MATCH the exact same character size, position, and art style as these frames.\n"
+            "Do NOT add or remove any clothing, weapons, or accessories.\n"
+            "ONLY change the body POSE as described below.\n\n"
+        )
+
+    return (
+        f"{ref_instructions}"
+        f"Generate frame {frame_idx + 1} of {total_frames} for a {action_desc} animation.\n"
+        f"Character: {description}\n\n"
+        f"POSE for this frame: {pose_desc}\n\n"
+        f"The pose MUST change from the previous frame to create fluid animation.\n"
+        f"Retro 16-bit pixel art. PURE SOLID BLACK #000000 background. Side view facing right."
+    )
