@@ -20,6 +20,7 @@ class FrameConditionedLine(ResearchLine):
             "L1.2c": self._subfase_2c_text_only_pose,
             "L1.3": self._subfase_3_temporal_consistency,
             "L1.3b": self._subfase_3b_anchor_plus_prev,
+            "L1.4": self._subfase_4_full_pipeline,
         }
 
     @property
@@ -281,3 +282,52 @@ class FrameConditionedLine(ResearchLine):
             frames.append(frame.convert("RGBA"))
 
         return frames
+
+    def _subfase_4_full_pipeline(
+        self,
+        description: str,
+        action: str,
+        num_frames: int | None = None,
+        **kwargs,
+    ) -> list[Image.Image]:
+        """L1.4: Full pipeline = L1.3b generation + post-processing.
+
+        Combines:
+        - L1.4a: Shared avatar (accepts avatar kwarg, generates once if missing)
+        - L1.3b: Anchor + prev frame generation
+        - L1.4b: Normalize size/position across all frames
+        - L1.4c: Pixelize (downscale + palette reduction)
+
+        kwargs:
+            avatar: Pre-generated avatar Image (for cross-action consistency)
+            target_size: Output frame size (default 128)
+            pixel_size: Pixel art grid size (default 4 → 32x32 effective)
+            num_colors: Palette size (default 32)
+            skip_pixel: If True, skip pixelization step
+        """
+        from .postprocess import normalize_frames, pixelize_frames
+
+        target_size = int(kwargs.get("target_size", 128))
+        pixel_size = int(kwargs.get("pixel_size", 4))
+        num_colors = int(kwargs.get("num_colors", 32))
+        skip_pixel = kwargs.get("skip_pixel", False)
+
+        # Step 1: Generate raw frames using L1.3b
+        print(f"  [L1.4] Generating with L1.3b...")
+        raw_frames = self._subfase_3b_anchor_plus_prev(
+            description, action, num_frames, **kwargs,
+        )
+
+        # Step 2: Normalize size/position (L1.4b)
+        print(f"  [L1.4] Normalizing {len(raw_frames)} frames to {target_size}x{target_size}...")
+        normalized = normalize_frames(raw_frames, target_size=target_size)
+
+        if skip_pixel:
+            return normalized
+
+        # Step 3: Pixelize (L1.4c)
+        effective_px = target_size // pixel_size
+        print(f"  [L1.4] Pixelizing: {effective_px}x{effective_px} grid, {num_colors} colors...")
+        pixelized = pixelize_frames(normalized, pixel_size=pixel_size, num_colors=num_colors)
+
+        return pixelized
