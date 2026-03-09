@@ -121,7 +121,7 @@ class ResearchLine(ABC):
         frames = []
 
         try:
-            frames = self.generate_frames(description, action, **kwargs)
+            frames = self.generate_frames(description, action, subfase=subfase, **kwargs)
         except Exception as e:
             errors.append(f"{type(e).__name__}: {e}")
 

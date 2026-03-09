@@ -55,10 +55,16 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(f"Description: {description[:80]}...")
     print()
 
+    subfase = args.subfase or ""
+    if subfase:
+        print(f"Subfase: {subfase}")
+
+    print()
+
     result = line.run(
         description=description,
         action=args.action,
-        subfase=args.subfase or "",
+        subfase=subfase,
         output_dir=OUTPUT_DIR,
     )
 

@@ -15,7 +15,9 @@ class FrameConditionedLine(ResearchLine):
         self._subfase = subfase
         self._subfase_impl = {
             "L1.1": self._subfase_1_gemini_direct,
-            "L1.2": self._subfase_2_prompt_engineering,
+            "L1.2a": self._subfase_2a_upscaled_template,
+            "L1.2b": self._subfase_2b_swapped_order,
+            "L1.2c": self._subfase_2c_text_only_pose,
         }
 
     @property
@@ -40,6 +42,16 @@ class FrameConditionedLine(ResearchLine):
             raise ValueError(f"Unknown subfase: {subfase}. Available: {list(self._subfase_impl.keys())}")
         return impl(description, action, num_frames, **kwargs)
 
+    def _generate_avatar(self, description: str, provider) -> Image.Image:
+        """Generate base avatar (shared across subfases)."""
+        from .prompts import build_avatar_prompt
+
+        avatar_prompt = build_avatar_prompt(description)
+        idle_ref = get_template_frames("idle")[0]
+        print(f"  Generating base avatar...")
+        avatar = provider.generate(avatar_prompt, idle_ref)
+        return avatar.convert("RGBA")
+
     def _subfase_1_gemini_direct(
         self,
         description: str,
@@ -47,53 +59,123 @@ class FrameConditionedLine(ResearchLine):
         num_frames: int | None = None,
         **kwargs,
     ) -> list[Image.Image]:
-        """L1.1: Gemini direct - avatar reference + template as pose guide.
-
-        For each template frame:
-        1. Generate an avatar image from description (or reuse if provided)
-        2. Pass avatar + template frame to Gemini with pose-following prompt
-        3. Collect generated frame
-        """
-        from providers.factory import create_provider
-        from .prompts import build_avatar_prompt, build_frame_prompt
+        """L1.1: Gemini direct - baseline (template ignored by model)."""
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt
 
         provider = create_provider("gemini")
         templates = get_template_frames(action)
         target_frames = num_frames or len(templates)
         templates = templates[:target_frames]
 
-        # Step 1: Generate base avatar (idle pose, neutral)
-        avatar = kwargs.get("avatar")
-        if avatar is None:
-            avatar_prompt = build_avatar_prompt(description)
-            idle_ref = get_template_frames("idle")[0]
-            print(f"  Generating base avatar...")
-            avatar = provider.generate(avatar_prompt, idle_ref)
-            avatar = avatar.convert("RGBA")
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
 
-        # Step 2: For each template frame, generate conditioned frame
         frames = []
         for i, template in enumerate(templates):
             prompt = build_frame_prompt(description, action, i, len(templates))
             print(f"  Frame {i+1}/{len(templates)}: generating...")
-            frame = provider.generate(
-                prompt,
-                template,
-                reference_images=[avatar],
-            )
+            frame = provider.generate(prompt, template, reference_images=[avatar])
             frames.append(frame.convert("RGBA"))
 
         return frames
 
-    def _subfase_2_prompt_engineering(
+    def _subfase_2a_upscaled_template(
         self,
         description: str,
         action: str,
         num_frames: int | None = None,
         **kwargs,
     ) -> list[Image.Image]:
-        """L1.2: Prompt engineering - optimized instructions for pose adherence.
+        """L1.2a: Upscale template to 512x512 + explicit color mapping in prompt.
 
-        Will be implemented after evaluating L1.1 results.
+        Hypothesis: 48x48 template is too small for Gemini to interpret.
+        Upscaling with NEAREST preserves the color blocks as visible regions.
         """
-        raise NotImplementedError("L1.2 will be implemented after L1.1 evaluation")
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt_v2a
+
+        provider = create_provider("gemini")
+        templates = get_template_frames(action)
+        target_frames = num_frames or len(templates)
+        templates = templates[:target_frames]
+
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
+
+        frames = []
+        for i, template in enumerate(templates):
+            # Upscale template so Gemini can actually see the pose
+            template_big = template.resize((512, 512), Image.NEAREST)
+
+            prompt = build_frame_prompt_v2a(description, action, i, len(templates))
+            print(f"  Frame {i+1}/{len(templates)}: [2a] upscaled template...")
+            frame = provider.generate(prompt, template_big, reference_images=[avatar])
+            frames.append(frame.convert("RGBA"))
+
+        return frames
+
+    def _subfase_2b_swapped_order(
+        self,
+        description: str,
+        action: str,
+        num_frames: int | None = None,
+        **kwargs,
+    ) -> list[Image.Image]:
+        """L1.2b: Swap image roles - template as reference, avatar as primary.
+
+        Hypothesis: Gemini treats input_image (last in contents) as "the image
+        to transform" and reference_images as supplementary. By making the
+        avatar the input_image, Gemini may focus more on transforming it
+        according to the template pose shown in reference_images.
+        """
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt_v2b
+
+        provider = create_provider("gemini")
+        templates = get_template_frames(action)
+        target_frames = num_frames or len(templates)
+        templates = templates[:target_frames]
+
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
+
+        frames = []
+        for i, template in enumerate(templates):
+            template_big = template.resize((512, 512), Image.NEAREST)
+
+            prompt = build_frame_prompt_v2b(description, action, i, len(templates))
+            print(f"  Frame {i+1}/{len(templates)}: [2b] swapped order...")
+            # SWAP: avatar is input_image, template is reference
+            frame = provider.generate(prompt, avatar, reference_images=[template_big])
+            frames.append(frame.convert("RGBA"))
+
+        return frames
+
+    def _subfase_2c_text_only_pose(
+        self,
+        description: str,
+        action: str,
+        num_frames: int | None = None,
+        **kwargs,
+    ) -> list[Image.Image]:
+        """L1.2c: Text-only pose description, no template image.
+
+        Hypothesis: the template image confuses the model. Describe the pose
+        entirely in text and only use the avatar as visual reference.
+        """
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt_v2c
+
+        provider = create_provider("gemini")
+        templates = get_template_frames(action)
+        target_frames = num_frames or len(templates)
+
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
+
+        frames = []
+        for i in range(target_frames):
+            prompt = build_frame_prompt_v2c(description, action, i, target_frames)
+            print(f"  Frame {i+1}/{target_frames}: [2c] text-only pose...")
+            # Only avatar, no template image
+            frame = provider.generate(prompt, avatar)
+            frames.append(frame.convert("RGBA"))
+
+        return frames

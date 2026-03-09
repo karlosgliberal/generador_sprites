@@ -9,18 +9,20 @@ OUTPUT: sprite strip PNG (N frames, estilo pixel art)
 
 ## Cómo usar
 
+Ejecutar siempre desde el directorio raíz del proyecto (`generador_sprites/`):
+
 ```bash
 # Ejecutar un experimento
-python -m generador_sprites.research run --line L1 --action idle
+python -m research run --line L1 --action idle
 
 # Con personaje de test predefinido
-python -m generador_sprites.research run --line L1 --action idle --character ninja
+python -m research run --line L1 --action idle --character ninja
 
 # Test smoke (solo idle)
-python -m generador_sprites.research test --line L1 --level smoke
+python -m research test --line L1 --level smoke
 
 # Test standard (idle + walk + punch)
-python -m generador_sprites.research test --line L1 --level standard
+python -m research test --line L1 --level standard
 ```
 
 ## Mecanismo de rollback
