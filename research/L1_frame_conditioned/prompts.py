@@ -4,7 +4,8 @@ L1.1: Basic prompts (template ignored by model)
 L1.2: Three strategies to force pose adherence:
   A) Upscale template + explicit color-to-part mapping
   B) Swap image order (avatar as reference, template as primary input)
-  C) Describe pose in text, skip template image entirely
+  C) Describe pose in text, skip template image entirely  ← WINNER
+L1.3: Temporal consistency - chain previous frames as reference
 """
 
 from __future__ import annotations
@@ -222,4 +223,53 @@ def build_frame_prompt_v2c(
         f"The character MUST be in the described pose - this is different from the reference pose.\n"
         f"Keep the same character design, colors, proportions and style as the reference.\n"
         f"Retro 16-bit pixel art. PURE BLACK BACKGROUND #000000. Side view facing right."
+    )
+
+
+# -- L1.3 prompts: temporal consistency --
+
+def build_frame_prompt_v3(
+    description: str,
+    action: str,
+    frame_idx: int,
+    total_frames: int,
+    has_prev_frames: bool = False,
+) -> str:
+    """L1.3: Text pose + chained references for temporal consistency.
+
+    Builds on L1.2c (text-only pose) but adds explicit instructions to
+    maintain consistency with previous frames passed as reference images.
+    """
+    action_desc = ACTION_DESCRIPTIONS.get(action, action)
+    pose_desc = get_pose_description(action, frame_idx, total_frames)
+
+    ref_instructions = ""
+    if has_prev_frames:
+        ref_instructions = (
+            "I'm showing you reference images:\n"
+            "- FIRST image: the character's base design (identity reference)\n"
+            "- FOLLOWING images: previously generated frames of this same animation\n\n"
+            "You MUST maintain EXACTLY:\n"
+            "- Same character size and proportions as the previous frames\n"
+            "- Same vertical position (feet at same height)\n"
+            "- Same art style, color palette, and level of detail\n"
+            "- Same clothing/equipment - do NOT add or remove any items\n\n"
+        )
+    else:
+        ref_instructions = (
+            "The reference image shows the character's base design.\n\n"
+        )
+
+    return (
+        f"{ref_instructions}"
+        f"Generate frame {frame_idx + 1} of {total_frames} for a {action_desc} animation.\n"
+        f"Character: {description}\n\n"
+        f"POSE for this frame: {pose_desc}\n\n"
+        f"RULES:\n"
+        f"- Character MUST be in the described pose\n"
+        f"- SAME character size, proportions, and position as reference frames\n"
+        f"- SAME outfit and equipment - nothing added, nothing removed\n"
+        f"- Retro 16-bit pixel art style\n"
+        f"- PURE SOLID BLACK BACKGROUND #000000\n"
+        f"- Side view facing right, centered in frame"
     )

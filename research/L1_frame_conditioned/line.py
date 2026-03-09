@@ -18,6 +18,7 @@ class FrameConditionedLine(ResearchLine):
             "L1.2a": self._subfase_2a_upscaled_template,
             "L1.2b": self._subfase_2b_swapped_order,
             "L1.2c": self._subfase_2c_text_only_pose,
+            "L1.3": self._subfase_3_temporal_consistency,
         }
 
     @property
@@ -176,6 +177,55 @@ class FrameConditionedLine(ResearchLine):
             print(f"  Frame {i+1}/{target_frames}: [2c] text-only pose...")
             # Only avatar, no template image
             frame = provider.generate(prompt, avatar)
+            frames.append(frame.convert("RGBA"))
+
+        return frames
+
+    def _subfase_3_temporal_consistency(
+        self,
+        description: str,
+        action: str,
+        num_frames: int | None = None,
+        **kwargs,
+    ) -> list[Image.Image]:
+        """L1.3: Temporal consistency via chained frame references.
+
+        Builds on L1.2c (text-only pose, winner strategy). For each frame:
+        - Avatar is always the primary input (identity anchor)
+        - Previous frames are passed as reference_images (consistency anchor)
+        - Prompt explicitly instructs to match size/position/style of prev frames
+
+        Uses a sliding window of max 3 previous frames to avoid overloading
+        the model's context while maintaining temporal coherence.
+        """
+        from generador_sprites.providers.factory import create_provider
+        from .prompts import build_frame_prompt_v3
+
+        provider = create_provider("gemini")
+        templates = get_template_frames(action)
+        target_frames = num_frames or len(templates)
+        max_ref_frames = int(kwargs.get("max_ref_frames", 3))
+
+        avatar = kwargs.get("avatar") or self._generate_avatar(description, provider)
+
+        frames = []
+        for i in range(target_frames):
+            has_prev = len(frames) > 0
+            prompt = build_frame_prompt_v3(
+                description, action, i, target_frames, has_prev_frames=has_prev,
+            )
+
+            # Build reference chain: avatar + last N generated frames
+            ref_images = []
+            if frames:
+                # Sliding window: keep last max_ref_frames
+                recent = frames[-max_ref_frames:]
+                ref_images = recent
+
+            print(f"  Frame {i+1}/{target_frames}: [L1.3] refs={len(ref_images)} prev frames...")
+            frame = provider.generate(
+                prompt, avatar, reference_images=ref_images if ref_images else None,
+            )
             frames.append(frame.convert("RGBA"))
 
         return frames
