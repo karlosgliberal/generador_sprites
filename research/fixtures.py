@@ -16,6 +16,8 @@ TEST_CHARACTERS = {
     "ninja": "dark ninja, purple robes, glowing green eyes, retro 16-bit pixel art style",
     "knight": "paladin in silver armor, blue tabard, golden emblem, medieval fantasy, pixel art style",
     "cat": "shadow cat ninja, black fur, bright yellow eyes, red scarf, pixel art style",
+    "monk": "shaolin monk, orange robes, shaved head, prayer beads around neck, bare feet, muscular arms, retro 16-bit pixel art style",
+    "rabbit": "wizard rabbit, white fur, tall pointy blue hat with stars, long blue robe, wooden magic staff in hand, big ears poking through hat, retro 16-bit pixel art style",
 }
 
 # Default character for quick tests

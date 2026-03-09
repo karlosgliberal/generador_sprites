@@ -10,6 +10,18 @@ import numpy as np
 from PIL import Image
 
 
+def remove_black_bg(img: Image.Image, threshold: int = 30) -> Image.Image:
+    """Replace near-black background with transparency.
+
+    Pixels where R, G, B are all below threshold become transparent.
+    """
+    arr = np.array(img.convert("RGBA"))
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    is_black = (r < threshold) & (g < threshold) & (b < threshold)
+    arr[is_black, 3] = 0
+    return Image.fromarray(arr)
+
+
 def find_character_bbox(img: Image.Image, threshold: int = 10) -> tuple[int, int, int, int]:
     """Find bounding box of non-background content.
 

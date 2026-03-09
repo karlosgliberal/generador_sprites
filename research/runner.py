@@ -15,9 +15,11 @@ from pathlib import Path
 
 from .fixtures import (
     DEFAULT_DESCRIPTION,
+    FRAME_COUNTS,
     SMOKE_TEST_ACTIONS,
     STANDARD_TEST_ACTIONS,
     TEST_CHARACTERS,
+    get_template_frames,
 )
 
 OUTPUT_DIR = Path(__file__).parent.parent / "research_output"
@@ -133,9 +135,21 @@ def cmd_multi(args: argparse.Namespace) -> None:
     avatar.save(avatar_path)
     print(f"Shared avatar saved: {avatar_path}\n")
 
+    import time as _time
+
+    total_frames = sum(
+        len(get_template_frames(a)) if a in FRAME_COUNTS else 8
+        for a in actions
+    )
+    generated = 0
+    t_start = _time.time()
+
     results = []
-    for action in actions:
-        print(f"=== {action} ===")
+    for ai, action in enumerate(actions):
+        action_frames = len(get_template_frames(action)) if action in FRAME_COUNTS else 8
+        print(f"\n{'='*60}")
+        print(f"[{ai+1}/{len(actions)}] {action.upper()} ({action_frames} frames)")
+        print(f"{'='*60}")
         result = line.run(
             description=description,
             action=action,
@@ -144,11 +158,21 @@ def cmd_multi(args: argparse.Namespace) -> None:
             avatar=avatar,
         )
         results.append(result)
+        generated += len(result.frames)
+        elapsed = _time.time() - t_start
         status = "OK" if not result.errors else f"FAIL: {result.errors[0]}"
-        print(f"  {status} ({len(result.frames)} frames)\n")
+        avg = elapsed / generated if generated else 0
+        remaining = (total_frames - generated) * avg
+        print(f"  {status} | {len(result.frames)} frames | "
+              f"Progress: {generated}/{total_frames} total | "
+              f"Elapsed: {elapsed:.0f}s | ETA: ~{remaining:.0f}s")
 
+    elapsed_total = _time.time() - t_start
     passed = sum(1 for r in results if not r.errors)
-    print(f"\nResults: {passed}/{len(results)} passed")
+    print(f"\n{'='*60}")
+    print(f"DONE: {passed}/{len(results)} actions passed | "
+          f"{generated} frames | {elapsed_total:.0f}s total")
+    print(f"{'='*60}")
 
 
 def main() -> None:

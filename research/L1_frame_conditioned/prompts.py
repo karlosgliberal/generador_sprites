@@ -79,10 +79,12 @@ POSE_DESCRIPTIONS = {
         6: "airborne, both feet off ground, legs switching",
     },
     "jump": {
-        0: "crouching, knees bent, arms back, preparing to jump",
-        2: "mid-air, body extended upward, arms raised",
-        4: "peak of jump, body fully extended",
-        5: "descending, knees starting to bend for landing",
+        0: "crouching low, knees deeply bent, arms pulled back, preparing to leap",
+        1: "pushing off ground, legs extending, arms swinging upward",
+        2: "mid-air rising, legs tucked underneath, arms raised above head",
+        3: "peak of jump, body fully stretched vertically, arms up high",
+        4: "descending, legs extending downward, arms lowering to sides",
+        5: "landing, knees bent absorbing impact, arms at sides for balance",
     },
     "punch": {
         0: "standing in fighting stance, fists raised",
@@ -97,10 +99,12 @@ POSE_DESCRIPTIONS = {
         5: "returning to guard position",
     },
     "death": {
-        0: "standing, hit by impact, leaning back",
-        3: "falling backward, arms flailing",
-        6: "almost horizontal, about to hit ground",
-        9: "lying flat on ground, defeated, completely horizontal",
+        0: "standing upright, just hit, flinching, head tilted back slightly",
+        2: "stumbling forward, one hand on chest, knees starting to buckle",
+        4: "dropping to knees, torso slumping forward, arms going limp",
+        6: "on knees, upper body falling forward toward the ground",
+        8: "collapsed face-down on the ground, limbs spread, completely still",
+        9: "lying face-down flat on the ground, motionless, defeated",
     },
 }
 

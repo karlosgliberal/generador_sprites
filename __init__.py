@@ -1,1 +1,1 @@
-"""Sprite generator: AI avatar generation + template-based part extraction."""
+"""Generador de sprites: AI-powered sprite sheet generation pipeline."""

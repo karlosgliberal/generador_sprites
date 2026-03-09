@@ -51,6 +51,24 @@ class ResearchResult:
             strip.save(run_dir / "strip.png")
             self.strip = strip
 
+        # Save animated GIF
+        if self.frames:
+            gif_frames = [f.convert("RGBA") for f in self.frames]
+            # Convert to P mode with transparency for GIF
+            gif_p = []
+            for f in gif_frames:
+                # Composite on black background for GIF (no alpha in GIF)
+                bg = Image.new("RGBA", f.size, (0, 0, 0, 255))
+                bg.paste(f, mask=f.split()[3])
+                gif_p.append(bg.convert("RGB"))
+            gif_p[0].save(
+                run_dir / "animation.gif",
+                save_all=True,
+                append_images=gif_p[1:],
+                duration=150,
+                loop=0,
+            )
+
         # Save metadata
         meta = {
             "line": self.line,
