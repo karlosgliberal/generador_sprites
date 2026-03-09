@@ -17,6 +17,7 @@ env/
 # Output generado
 output/
 parts/
+research_output/
 
 # OS
 .DS_Store
