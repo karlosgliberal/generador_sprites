@@ -18,7 +18,12 @@ dependencies = [
 flux = []  # No extra deps, uses HTTP API
 gemini = ["google-genai>=1.0"]
 rembg = ["rembg>=2.0"]
-all = ["google-genai>=1.0", "rembg>=2.0"]
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
+all = ["google-genai>=1.0", "rembg>=2.0", "fastapi>=0.115", "uvicorn[standard]>=0.30"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+exclude = ["frontend", "research_output", "output", "data", "templates", "docs"]
 
 [project.scripts]
 generador-sprites = "generador_sprites.cli:main"
